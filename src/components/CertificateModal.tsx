@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import { X, Download, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import itcLogo from '/assets/itc-logo.webp';
 
 interface Props {
@@ -346,6 +347,7 @@ export function CertificateModal(props: Props) {
       pdf.save(`${props.certificateNo}.pdf`);
     } catch (e) {
       console.error('Certificate download failed', e);
+      toast.error('Failed to generate PDF. Please try again.');
     } finally {
       setDownloading(false);
     }

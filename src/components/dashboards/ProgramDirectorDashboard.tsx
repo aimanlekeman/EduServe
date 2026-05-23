@@ -133,13 +133,20 @@ export function ProgramDirectorDashboard() {
     setReviewProgram(p);
     setProgramFeedback([]);
     setReviewsLoading(true);
-    const { data } = await supabase
-      .from('feedback')
-      .select('rating, review, created_at')
-      .eq('program_id', p.id)
-      .order('created_at', { ascending: false });
-    setProgramFeedback((data ?? []) as FeedbackRow[]);
-    setReviewsLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('feedback')
+        .select('rating, review, created_at')
+        .eq('program_id', p.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setProgramFeedback((data ?? []) as FeedbackRow[]);
+    } catch {
+      toast.error('Failed to load reviews.');
+      setReviewProgram(null);
+    } finally {
+      setReviewsLoading(false);
+    }
   };
 
   const load = useCallback(async () => {
@@ -185,7 +192,7 @@ export function ProgramDirectorDashboard() {
       const now  = Date.now();
       const slot = Math.floor(now / 15000);
       setQrPayload(JSON.stringify({ programId: qrProgram.qr_code, timestamp: now }));
-      setQrDisplayCode(slotCode(qrProgram.qr_code ?? '', 0)); // fixed for demo
+      setQrDisplayCode(slotCode(qrProgram.qr_code ?? '', slot));
     };
     generate();
     setQrCountdown(15);

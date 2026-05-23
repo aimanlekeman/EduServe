@@ -58,7 +58,7 @@ function drawPageHeader(pdf: jsPDF, title: string, pageNum: number, total: numbe
   setColor(pdf, GOLD);
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(8);
-  pdf.text('UTHM VOLUNTEER PROGRAMME', 15, 7);
+  pdf.text('EDUSERVE VOLUNTEER PROGRAMME', 15, 7);
   setColor(pdf, WHITE);
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(7.5);
@@ -122,7 +122,7 @@ export async function generateAnalyticsReport(
   setColor(pdf, GOLD);
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(9);
-  pdf.text('UNIVERSITI TUN HUSSAIN ONN MALAYSIA', W / 2, 30, { align: 'center' });
+  pdf.text('UNIVERSITI TUN HUSSEIN ONN MALAYSIA', W / 2, 30, { align: 'center' });
 
   setColor(pdf, [180, 200, 230] as [number,number,number]);
   pdf.setFont('helvetica', 'normal');
@@ -333,6 +333,12 @@ export async function generateAnalyticsReport(
   pHeaders.forEach((h, i) => { pdf.text(h, cx + 3, y + 5.5); cx += pCols[i]; });
   y += 8;
 
+  if (programs.length > 12) {
+    setColor(pdf, MUTED);
+    pdf.setFont('helvetica', 'italic');
+    pdf.setFontSize(6.5);
+    pdf.text(`Showing 12 of ${programs.length} programs. See full data in the dashboard.`, M, y - 1);
+  }
   programs.slice(0, 12).forEach((p, idx) => {
     const regCount = registrations.filter(r => r.program_id === p.id).length;
     const rH = 9;
@@ -455,6 +461,12 @@ export async function generateAnalyticsReport(
   y += 8;
 
   const sortedStudents = [...students].sort((a, b) => (b.volunteer_hours || 0) - (a.volunteer_hours || 0));
+  if (sortedStudents.length > 15) {
+    setColor(pdf, MUTED);
+    pdf.setFont('helvetica', 'italic');
+    pdf.setFontSize(6.5);
+    pdf.text(`Showing top 15 of ${sortedStudents.length} students by volunteer hours. See full data in the dashboard.`, M, y - 1);
+  }
   sortedStudents.slice(0, 15).forEach((s, idx) => {
     const rCount = registrations.filter(r => r.user_id === s.id).length;
     const rH = 9;

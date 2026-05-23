@@ -87,7 +87,8 @@ export function DashboardLayout({
 
   const markAllAsRead = async () => {
     if (!user || unreadCount === 0) return;
-    await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
+    if (error) { toast.error('Failed to mark notifications as read'); return; }
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     toast.success('All notifications marked as read');
   };

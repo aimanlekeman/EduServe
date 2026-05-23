@@ -100,46 +100,50 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
   };
 
   const loadData = async () => {
-    // Achievements
-    const { data: achData } = await supabase
-      .from('achievements')
-      .select('*')
-      .order('date', { ascending: false })
-      .limit(4);
-    if (achData) setAchievements(achData as Achievement[]);
+    try {
+      // Achievements
+      const { data: achData } = await supabase
+        .from('achievements')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(4);
+      if (achData) setAchievements(achData as Achievement[]);
 
-    // Upcoming approved programs
-    const today = new Date().toISOString().split('T')[0];
-    const { data: progData } = await supabase
-      .from('programs')
-      .select('*')
-      .eq('status', 'approved')
-      .gte('date', today)
-      .order('date', { ascending: true })
-      .limit(4);
-    if (progData) {
-      setUpcomingPrograms(progData as Program[]);
-      if (progData.length > 0) {
-        await refreshCounts(progData.map(p => p.id));
+      // Upcoming approved programs
+      const today = new Date().toISOString().split('T')[0];
+      const { data: progData } = await supabase
+        .from('programs')
+        .select('*')
+        .eq('status', 'approved')
+        .gte('date', today)
+        .order('date', { ascending: true })
+        .limit(4);
+      if (progData) {
+        setUpcomingPrograms(progData as Program[]);
+        if (progData.length > 0) {
+          await refreshCounts(progData.map(p => p.id));
+        }
       }
-    }
 
-    // Stats
-    const [{ count: studentCount }, { count: programCount }, { data: hoursData }] =
-      await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
-        supabase.from('programs').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
-        supabase.from('profiles').select('volunteer_hours'),
-      ]);
-    const totalHours = (hoursData || []).reduce(
-      (sum: number, p: { volunteer_hours: number }) => sum + (p.volunteer_hours || 0),
-      0
-    );
-    setStats({
-      students: studentCount || 0,
-      programs: programCount || 0,
-      hours: totalHours,
-    });
+      // Stats
+      const [{ count: studentCount }, { count: programCount }, { data: hoursData }] =
+        await Promise.all([
+          supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+          supabase.from('programs').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
+          supabase.from('profiles').select('volunteer_hours'),
+        ]);
+      const totalHours = (hoursData || []).reduce(
+        (sum: number, p: { volunteer_hours: number }) => sum + (p.volunteer_hours || 0),
+        0
+      );
+      setStats({
+        students: studentCount || 0,
+        programs: programCount || 0,
+        hours: totalHours,
+      });
+    } catch (err) {
+      console.error('Failed to load homepage data:', err);
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -168,13 +172,13 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
                 fontFamily: 'var(--font-display)',
                 fontWeight: 700,
                 fontSize: '0.9375rem',
-                color: 'var(--text-primary)',
+                color: '#ffffff',
                 lineHeight: 1,
               }}
             >
               EduServe
             </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: '0.7rem', color: 'rgba(191, 219, 254, 0.8)' }}>
               Program Management
             </div>
           </div>

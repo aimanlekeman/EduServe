@@ -48,6 +48,7 @@ function AppContent() {
       case 'student':
         return <StudentDashboard />;
       default:
+        console.warn('[EduServe] Unknown user role:', user.role, '— falling back to StudentDashboard');
         return <StudentDashboard />;
     }
   }

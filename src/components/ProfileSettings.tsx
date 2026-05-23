@@ -30,6 +30,10 @@ export function ProfileSettings({ onClose }: ProfileSettingsProps) {
     const trimmedPhone = phone.trim();
 
     if (!trimmedName) { toast.error('Full name cannot be empty.'); return; }
+    if (trimmedPhone && !/^[+\d\s\-()]{7,20}$/.test(trimmedPhone)) {
+      toast.error('Please enter a valid phone number (digits, spaces, +, -, parentheses).');
+      return;
+    }
 
     setSaving(true);
     try {
