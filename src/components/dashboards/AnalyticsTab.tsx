@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts';
-import { TrendingUp, TrendingDown, FileDown, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, FileDown, Loader2, Star } from 'lucide-react';
 import type { Program, Profile, Registration } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { generateAnalyticsReport } from '../../lib/generateReport';
 
 interface Props {
   programs: Program[];
   users: Profile[];
   registrations: Registration[];
+  attendanceHours: Record<string, number>;
 }
 
 // ── Palette ────────────────────────────────────────────────────────────────
@@ -196,12 +198,43 @@ function KpiCard({ label, target, actual, unit, description }: KpiCardProps) {
 
 // ── Main Component ──────────────────────────────────────────────────────────
 
-export function AnalyticsTab({ programs, users, registrations }: Props) {
+interface FeedbackRow { program_id: string; rating: number; }
+
+export function AnalyticsTab({ programs, users, registrations, attendanceHours }: Props) {
   const [generating, setGenerating] = useState(false);
+  const [allFeedback, setAllFeedback] = useState<FeedbackRow[]>([]);
+
+  useEffect(() => {
+    supabase.from('feedback').select('program_id, rating')
+      .then(({ data }) => { if (data) setAllFeedback(data as FeedbackRow[]); });
+  }, []);
+
   const students = users.filter(u => u.role === 'student');
 
+  // ── Feedback-derived metrics ───────────────────────────────────────────
+  const avgUniversityRating = allFeedback.length > 0
+    ? (allFeedback.reduce((s, f) => s + f.rating, 0) / allFeedback.length)
+    : null;
+
+  const topRatedPrograms = (() => {
+    const byProgram: Record<string, number[]> = {};
+    allFeedback.forEach(f => {
+      if (!byProgram[f.program_id]) byProgram[f.program_id] = [];
+      byProgram[f.program_id].push(f.rating);
+    });
+    return Object.entries(byProgram)
+      .map(([id, ratings]) => ({
+        id,
+        title: programs.find(p => p.id === id)?.title ?? 'Unknown',
+        avg: ratings.reduce((s, r) => s + r, 0) / ratings.length,
+        count: ratings.length,
+      }))
+      .sort((a, b) => b.avg - a.avg || b.count - a.count)
+      .slice(0, 3);
+  })();
+
   // ── Derived KPI actuals ────────────────────────────────────────────────
-  const totalHours    = students.reduce((s, u) => s + (u.volunteer_hours || 0), 0);
+  const totalHours    = students.reduce((s, u) => s + (attendanceHours[u.id] ?? 0), 0);
   const approvedProgs = programs.filter(p => p.status === 'approved').length;
   const activeStudents = new Set(registrations.map(r => r.user_id)).size;
   const avgHours = students.length > 0 ? parseFloat((totalHours / students.length).toFixed(1)) : 0;
@@ -237,15 +270,15 @@ export function AnalyticsTab({ programs, users, registrations }: Props) {
     const eligible = students.filter(u => new Date(u.created_at) <= d);
     return {
       month: m,
-      Hours: eligible.reduce((s, u) => s + (u.volunteer_hours || 0), 0),
+      Hours: eligible.reduce((s, u) => s + (attendanceHours[u.id] ?? 0), 0),
     };
   });
 
   // ── Top 10 students by volunteer hours (bar) ──────────────────────────
   const topStudents = [...students]
-    .sort((a, b) => (b.volunteer_hours || 0) - (a.volunteer_hours || 0))
+    .sort((a, b) => (attendanceHours[b.id] ?? 0) - (attendanceHours[a.id] ?? 0))
     .slice(0, 10)
-    .map(u => ({ name: u.name.split(' ')[0], Hours: u.volunteer_hours || 0 }));
+    .map(u => ({ name: u.name.split(' ')[0], Hours: attendanceHours[u.id] ?? 0 }));
 
   // ── Registrations per program (bar) ───────────────────────────────────
   const regByProgram = programs
@@ -292,6 +325,46 @@ export function AnalyticsTab({ programs, users, registrations }: Props) {
             ? <><Loader2 size={15} className="animate-spin" /> Generating…</>
             : <><FileDown size={15} /> Generate Report</>}
         </button>
+      </div>
+
+      {/* ── Quality Rating Summary ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+
+        {/* Average university rating card */}
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', background: 'linear-gradient(135deg, rgba(212,175,90,0.08), var(--bg-card))', border: '1px solid rgba(212,175,90,0.25)' }}>
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(212,175,90,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Star size={26} style={{ color: '#D4AF5A' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B8962E', marginBottom: 2 }}>Avg University Rating</div>
+            {avgUniversityRating !== null ? (
+              <>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.75rem', color: '#D4AF5A', lineHeight: 1 }}>
+                  {avgUniversityRating.toFixed(1)}<span style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: 2 }}>/5.0</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 3 }}>from {allFeedback.length} review{allFeedback.length !== 1 ? 's' : ''}</div>
+              </>
+            ) : (
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>No reviews yet</div>
+            )}
+          </div>
+        </div>
+
+        {/* Top rated programs */}
+        {topRatedPrograms.length > 0 && (
+          <div className="card" style={{ gridColumn: 'span 1' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>Top Rated Programs</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {topRatedPrograms.map((p, i) => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                  <span style={{ fontWeight: 800, fontSize: '0.8rem', color: '#D4AF5A', width: 16 }}>#{i + 1}</span>
+                  <span style={{ flex: 1, fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+                  <span style={{ fontSize: '0.8rem', color: '#D4AF5A', fontWeight: 700, flexShrink: 0 }}>★ {p.avg.toFixed(1)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── KPI Cards ── */}

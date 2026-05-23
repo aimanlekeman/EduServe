@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '../layout/DashboardLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -19,6 +19,10 @@ import {
   Calendar,
   BarChart2,
   Clock,
+  Megaphone,
+  MapPin,
+  Building2,
+  CalendarX,
 } from 'lucide-react';
 import { AnalyticsTab } from './AnalyticsTab';
 
@@ -31,11 +35,32 @@ export function AdminDashboard() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [attendanceHours, setAttendanceHours] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   // Program / user filters
   const [programFilter, setProgramFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'admin' | 'program_director' | 'student'>('all');
+
+  // Broadcast
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [broadcasting, setBroadcasting] = useState(false);
+
+  const sendBroadcast = async () => {
+    if (!broadcastMsg.trim()) { toast.error('Please enter a message'); return; }
+    setBroadcasting(true);
+    const rows = users.map(u => ({
+      user_id: u.id,
+      title: 'System Announcement',
+      body: broadcastMsg.trim(),
+      type: 'broadcast',
+      created_by: user?.id,
+    }));
+    const { error } = await supabase.from('notifications').insert(rows);
+    setBroadcasting(false);
+    if (error) { toast.error('Failed to send broadcast'); }
+    else { toast.success(`Broadcast sent to ${users.length} users`); setBroadcastMsg(''); }
+  };
 
   // Achievement form
   const [achForm, setAchForm] = useState({ title: '', description: '', date: '', category: 'general', icon: 'trophy' });
@@ -46,16 +71,24 @@ export function AdminDashboard() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, u, r, a] = await withTimeout(Promise.all([
+      const [p, u, r, a, att] = await withTimeout(Promise.all([
         supabase.from('programs').select('*, creator:created_by(name,email)').order('created_at', { ascending: false }),
         supabase.from('profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('registrations').select('*, program:program_id(title,date), user:user_id(name,email)').order('created_at', { ascending: false }),
         supabase.from('achievements').select('*').order('date', { ascending: false }),
+        supabase.from('attendance').select('user_id, program:program_id(volunteer_hours)'),
       ]));
       if (p.data) setPrograms(p.data as Program[]);
       if (u.data) setUsers(u.data as Profile[]);
       if (r.data) setRegistrations(r.data as Registration[]);
       if (a.data) setAchievements(a.data as Achievement[]);
+      if (att.data) {
+        const map: Record<string, number> = {};
+        (att.data as { user_id: string; program: { volunteer_hours: number } | null }[]).forEach(row => {
+          map[row.user_id] = (map[row.user_id] ?? 0) + (row.program?.volunteer_hours ?? 0);
+        });
+        setAttendanceHours(map);
+      }
     } catch (err) {
       console.error('Failed to load admin data:', err);
       toast.error('Failed to load data. Please refresh.');
@@ -73,6 +106,19 @@ export function AdminDashboard() {
       .eq('id', id);
     if (!error) {
       toast.success(`Program ${approved ? 'approved' : 'rejected'}`);
+      const prog = programs.find(p => p.id === id);
+      if (prog?.created_by) {
+        await supabase.from('notifications').insert({
+          user_id: prog.created_by,
+          title: approved ? 'Program Approved ✓' : 'Program Not Approved',
+          body: approved
+            ? `Your program "${prog.title}" has been approved and is now live!`
+            : `Your program "${prog.title}" was not approved. Contact admin for details.`,
+          type: approved ? 'success' : 'warning',
+          created_by: user?.id,
+          program_id: id,
+        });
+      }
       load();
     } else {
       toast.error('Failed to update program');
@@ -133,7 +179,7 @@ export function AdminDashboard() {
     totalUsers: users.filter(u => u.role === 'student').length,
     totalPrograms: programs.filter(p => p.status === 'approved').length,
     pendingPrograms: programs.filter(p => p.status === 'pending').length,
-    totalHours: users.reduce((s, u) => s + (u.volunteer_hours || 0), 0),
+    totalHours: Object.values(attendanceHours).reduce((s, h) => s + h, 0),
   };
 
   const filteredPrograms = programFilter === 'all' ? programs : programs.filter(p => p.status === programFilter);
@@ -191,6 +237,38 @@ export function AdminDashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* ── Broadcast Announcement ── */}
+              <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid rgba(37,99,235,0.25)', background: 'rgba(37,99,235,0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.875rem' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(37,99,235,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Megaphone size={17} style={{ color: 'var(--blue-400)' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>Broadcast Announcement</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Send a message to all {users.length} users instantly</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <input
+                    className="input-field"
+                    style={{ flex: 1, minWidth: 240 }}
+                    placeholder='e.g. "System maintenance tonight at 11 PM"'
+                    value={broadcastMsg}
+                    onChange={e => setBroadcastMsg(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !broadcasting) sendBroadcast(); }}
+                    disabled={broadcasting}
+                  />
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={sendBroadcast}
+                    disabled={broadcasting || !broadcastMsg.trim()}
+                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                  >
+                    {broadcasting ? <><Loader2 size={14} className="animate-spin" /> Sending…</> : <><Megaphone size={14} /> Send Broadcast</>}
+                  </button>
+                </div>
               </div>
 
               {/* Pending programs quick view */}
@@ -253,52 +331,132 @@ export function AdminDashboard() {
                   <option value="rejected">Rejected</option>
                 </select>
               </div>
-              <div className="card">
-                <div className="table-wrap">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Program</th>
-                        <th>Date</th>
-                        <th>Location</th>
-                        <th>Hours</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredPrograms.length === 0 && (
-                        <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No programs found</td></tr>
-                      )}
-                      {filteredPrograms.map(p => (
-                        <tr key={p.id}>
-                          <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{p.title}</td>
-                          <td>{new Date(p.date).toLocaleDateString('en-MY')}</td>
-                          <td>{p.location}</td>
-                          <td>{p.volunteer_hours}h</td>
-                          <td><span className={`badge badge-${p.status === 'approved' ? 'approved' : p.status === 'pending' ? 'pending' : 'rejected'}`}>{p.status}</span></td>
-                          <td>
-                            <div style={{ display: 'flex', gap: '0.375rem' }}>
-                              {p.status === 'pending' && (
-                                <>
-                                  <button className="btn btn-sm" style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.2)', padding: '0.3rem 0.6rem' }} onClick={() => approveProgram(p.id, true)} title="Approve"><CheckCircle size={13} /></button>
-                                  <button className="btn btn-danger btn-sm" style={{ padding: '0.3rem 0.6rem' }} onClick={() => approveProgram(p.id, false)} title="Reject"><XCircle size={13} /></button>
-                                </>
-                              )}
-                              {p.status === 'approved' && (
-                                <button className="btn btn-danger btn-sm" style={{ padding: '0.3rem 0.6rem' }} onClick={() => approveProgram(p.id, false)} title="Reject"><XCircle size={13} /></button>
-                              )}
-                              {p.status === 'rejected' && (
-                                <button className="btn btn-sm" style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.2)', padding: '0.3rem 0.6rem' }} onClick={() => approveProgram(p.id, true)} title="Restore / Approve"><RotateCcw size={13} /></button>
-                              )}
-                              <button className="btn btn-danger btn-sm" style={{ padding: '0.3rem 0.6rem' }} onClick={() => deleteProgram(p.id)} title="Delete"><Trash2 size={13} /></button>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                {filteredPrograms.length === 0 && (
+                  <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', gridColumn: '1 / -1', padding: '3rem' }}>
+                    No programs found
+                  </div>
+                )}
+                {filteredPrograms.map(p => {
+                  const joined = registrations.filter(r => r.program_id === p.id && r.status !== 'rejected').length;
+                  const creator = p.creator as { name: string; email: string } | undefined;
+                  return (
+                    <div className="program-card" key={p.id} style={{ padding: 0, overflow: 'hidden' }}>
+
+                      {/* Banner */}
+                      <div className="program-card-banner">
+                        {p.image_url
+                          ? <img src={p.image_url} alt={p.title} />
+                          : <div className="program-card-banner-placeholder" />
+                        }
+                      </div>
+
+                      {/* Content */}
+                      <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+                        {/* Title + status badge */}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, color: 'var(--text-primary)' }}>{p.title}</span>
+                            <span className={`badge badge-${p.status === 'approved' ? 'approved' : p.status === 'pending' ? 'pending' : 'rejected'}`}>{p.status}</span>
+                          </div>
+                          {p.description && (
+                            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', margin: 0 }}>
+                              {p.description}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Meta rows */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                          {([
+                            { icon: Calendar,  text: new Date(p.date).toLocaleDateString('en-MY') },
+                            { icon: MapPin,    text: p.location },
+                            { icon: Clock,     text: `${p.volunteer_hours} volunteer hours` },
+                            ...(p.organizer    ? [{ icon: Building2, text: p.organizer }]    : []),
+                          ] as { icon: React.ElementType; text: string }[]).map(({ icon: Icon, text }) => (
+                            <div key={text} style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <Icon size={12} /> {text}
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          ))}
+                          {p.registration_deadline && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <CalendarX size={11} /> Reg. by {new Date(p.registration_deadline).toLocaleDateString('en-MY')}
+                            </div>
+                          )}
+                          {creator && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, marginTop: '0.1rem' }}>
+                              <Users size={11} /> By {creator.name}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Participant count */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '0.35rem 0.6rem', borderRadius: 6, width: 'fit-content' }}>
+                          <Users size={12} />
+                          {p.max_participants
+                            ? <span><strong style={{ color: 'var(--text-primary)' }}>{joined}</strong> / {p.max_participants} Participants</span>
+                            : <span><strong style={{ color: 'var(--text-primary)' }}>{joined}</strong> Participants · Unlimited</span>
+                          }
+                        </div>
+
+                        {/* Admin actions */}
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', paddingTop: '0.625rem', borderTop: '1px solid var(--border)', marginTop: 'auto' }}>
+                          {p.status === 'pending' && (
+                            <>
+                              <button
+                                className="btn btn-sm"
+                                style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem' }}
+                                onClick={() => approveProgram(p.id, true)}
+                                title="Approve"
+                              >
+                                <CheckCircle size={13} /> Approve
+                              </button>
+                              <button
+                                className="btn btn-danger btn-sm"
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem' }}
+                                onClick={() => approveProgram(p.id, false)}
+                                title="Reject"
+                              >
+                                <XCircle size={13} /> Reject
+                              </button>
+                            </>
+                          )}
+                          {p.status === 'approved' && (
+                            <button
+                              className="btn btn-danger btn-sm"
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem' }}
+                              onClick={() => approveProgram(p.id, false)}
+                              title="Revoke approval"
+                            >
+                              <XCircle size={13} /> Revoke
+                            </button>
+                          )}
+                          {p.status === 'rejected' && (
+                            <button
+                              className="btn btn-sm"
+                              style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem' }}
+                              onClick={() => approveProgram(p.id, true)}
+                              title="Restore / Approve"
+                            >
+                              <RotateCcw size={13} /> Restore
+                            </button>
+                          )}
+                          <button
+                            className="btn btn-danger btn-sm"
+                            style={{ marginLeft: 'auto' }}
+                            onClick={() => deleteProgram(p.id)}
+                            title="Delete"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -326,6 +484,8 @@ export function AdminDashboard() {
                       <tr>
                         <th>Name</th>
                         <th>Email</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>Matric No.</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>Phone</th>
                         <th>Role</th>
                         <th>Hours</th>
                         <th>Joined</th>
@@ -334,18 +494,30 @@ export function AdminDashboard() {
                     </thead>
                     <tbody>
                       {filteredUsers.length === 0 && (
-                        <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No users found</td></tr>
+                        <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No users found</td></tr>
                       )}
                       {filteredUsers.map(u => (
                         <tr key={u.id}>
                           <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{u.name}</td>
                           <td>{u.email}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            {u.matric_number
+                              ? <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', letterSpacing: '0.04em' }}>{u.matric_number}</span>
+                              : <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            }
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            {u.phone_number
+                              ? <a href={`tel:${u.phone_number.replace(/\s/g, '')}`} style={{ color: 'var(--blue-500)', textDecoration: 'none', fontWeight: 500 }}>{u.phone_number}</a>
+                              : <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            }
+                          </td>
                           <td>
                             <span className="badge badge-blue" style={{ textTransform: 'capitalize', fontSize: '0.7rem' }}>
                               {u.role === 'program_director' ? 'Director' : u.role}
                             </span>
                           </td>
-                          <td>{u.role === 'student' ? `${u.volunteer_hours}h` : '—'}</td>
+                          <td>{u.role === 'student' ? `${attendanceHours[u.id] ?? 0}h` : '—'}</td>
                           <td>{new Date(u.created_at).toLocaleDateString('en-MY')}</td>
                           <td>
                             {u.id !== user?.id && (
@@ -465,6 +637,7 @@ export function AdminDashboard() {
               programs={programs}
               users={users}
               registrations={registrations}
+              attendanceHours={attendanceHours}
             />
           )}
         </>

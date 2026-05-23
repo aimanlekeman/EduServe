@@ -259,9 +259,9 @@ export function QrScannerModal({ onScan, onClose, loading = false }: Props) {
               <label className="label">QR Code</label>
               <input
                 className="input-field"
-                placeholder="e.g. QR-A1B2C3D4"
+                placeholder="e.g. 742831"
                 value={manualInput}
-                onChange={e => setManualInput(e.target.value.toUpperCase())}
+                onChange={e => setManualInput(e.target.value.trim())}
                 autoFocus
                 onKeyDown={e => { if (e.key === 'Enter' && !loading) onScan(manualInput.trim()); }}
                 style={{ fontFamily: 'monospace', letterSpacing: '0.08em', minHeight: 48 }}

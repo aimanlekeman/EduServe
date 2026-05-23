@@ -22,6 +22,8 @@ export interface Profile {
   name: string;
   role: UserRole;
   volunteer_hours: number;
+  matric_number: string | null;
+  phone_number: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +41,8 @@ export interface Program {
   qr_code: string | null;
   rejection_reason: string | null;
   image_url: string | null;
+  organizer: string | null;
+  registration_deadline: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

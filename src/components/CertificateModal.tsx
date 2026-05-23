@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import { X, Download, Loader2 } from 'lucide-react';
+import itcLogo from '/assets/itc-logo.webp';
 
 interface Props {
   studentName: string;
@@ -82,7 +83,7 @@ function CertificateBody({ studentName, programTitle, programDate, volunteerHour
   return (
     <div style={{
       width: '100%',
-      aspectRatio: '1.414 / 1',
+      aspectRatio: '1 / 1.414',
       background: WHITE,
       position: 'relative',
       fontFamily: "'DM Sans', sans-serif",
@@ -104,73 +105,62 @@ function CertificateBody({ studentName, programTitle, programDate, volunteerHour
       <div style={{
         background: `linear-gradient(135deg, ${NAVY} 0%, #142966 100%)`,
         margin: '22px 22px 0',
-        padding: '16px 28px',
+        padding: 'clamp(16px, 3vh, 24px) clamp(16px, 3vw, 24px)',
         display: 'flex',
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: 16,
+        gap: 12,
         borderRadius: '2px 2px 0 0',
         borderBottom: `2px solid ${GOLD}`,
       }}>
-        {/* UTHM Logo — prominent, no seal beside it */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <img
-            src="/assets/uthm-logo.png"
-            alt="UTHM"
-            style={{ height: 72, width: 'auto', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}
-            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-          />
-          <div style={{ borderLeft: `1.5px solid ${SILVER}`, paddingLeft: 16 }}>
-            <div style={{
-              fontFamily: "'Cinzel', serif",
-              fontWeight: 700,
-              fontSize: 'clamp(0.6rem, 1.6vw, 0.85rem)',
-              color: WHITE,
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-            }}>
-              Universiti Tun Hussein Onn Malaysia
-            </div>
-            <div style={{
-              fontFamily: "'Cinzel', serif",
-              fontSize: 'clamp(0.48rem, 1.1vw, 0.62rem)',
-              color: SILVER,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              marginTop: 4,
-            }}>
-              Pusat Kesukarelaan UTHM
-            </div>
-            <div style={{ marginTop: 5, display: 'flex', gap: 4 }}>
-              <div style={{ width: 28, height: 2, background: GOLD, borderRadius: 2 }} />
-              <div style={{ width: 14, height: 2, background: SILVER, borderRadius: 2 }} />
-              <div style={{ width: 7, height: 2, background: BLUE, borderRadius: 2 }} />
-            </div>
-          </div>
-        </div>
+        {/* Left — UTHM logo */}
+        <img
+          src="/assets/uthm-logo.png"
+          alt="UTHM"
+          style={{ height: 'clamp(64px, 10vh, 90px)', width: 'auto', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))' }}
+          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+        />
 
-        {/* Right block */}
-        <div style={{ textAlign: 'right' }}>
+        {/* Centre — institution & programme text */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
           <div style={{
             fontFamily: "'Cinzel', serif",
             fontWeight: 700,
-            fontSize: 'clamp(0.48rem, 1.1vw, 0.65rem)',
-            color: GOLD2,
+            fontSize: 'clamp(0.55rem, 1.5vw, 0.78rem)',
+            color: WHITE,
             letterSpacing: '0.14em',
             textTransform: 'uppercase',
+            textAlign: 'center',
+            lineHeight: 1.3,
           }}>
-            Volunteer Programme
+            Universiti Tun Hussein Onn Malaysia
+          </div>
+          <div style={{ display: 'flex', gap: 4, margin: '2px 0' }}>
+            <div style={{ width: 24, height: 1.5, background: GOLD, borderRadius: 2 }} />
+            <div style={{ width: 12, height: 1.5, background: SILVER, borderRadius: 2 }} />
+            <div style={{ width: 6, height: 1.5, background: BLUE, borderRadius: 2 }} />
+            <div style={{ width: 12, height: 1.5, background: SILVER, borderRadius: 2 }} />
+            <div style={{ width: 24, height: 1.5, background: GOLD, borderRadius: 2 }} />
           </div>
           <div style={{
             fontFamily: "'Cinzel', serif",
-            fontSize: 'clamp(0.38rem, 0.85vw, 0.5rem)',
-            color: SILVER,
-            marginTop: 4,
-            letterSpacing: '0.1em',
+            fontSize: 'clamp(0.42rem, 1vw, 0.58rem)',
+            color: GOLD2,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            textAlign: 'center',
           }}>
-            Parit Raja · Johor · Malaysia
+            EduServe · Volunteer Programme
           </div>
         </div>
+
+        {/* Right — ITC / EduServe logo */}
+        <img
+          src={itcLogo}
+          alt="EduServe"
+          style={{ height: 'clamp(44px, 7vh, 64px)', width: 'auto', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))' }}
+        />
       </div>
 
       {/* ── Body ── */}
@@ -350,9 +340,9 @@ export function CertificateModal(props: Props) {
         },
       });
       const { jsPDF } = await import('jspdf');
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
+      pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
       pdf.save(`${props.certificateNo}.pdf`);
     } catch (e) {
       console.error('Certificate download failed', e);
@@ -382,7 +372,7 @@ export function CertificateModal(props: Props) {
       <div
         style={{
           width: '100%',
-          maxWidth: 900,
+          maxWidth: 600,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -442,7 +432,7 @@ export function CertificateModal(props: Props) {
       <div
         ref={certRef}
         data-cert="true"
-        style={{ width: '100%', maxWidth: 900, flexShrink: 0 }}
+        style={{ width: '100%', maxWidth: 600, flexShrink: 0 }}
         onClick={e => e.stopPropagation()}
       >
         <CertificateBody {...props} />

@@ -34,13 +34,15 @@ CREATE TABLE public.programs (
   time             TIME NOT NULL,
   location         TEXT NOT NULL,
   volunteer_hours  INTEGER NOT NULL DEFAULT 1,
-  max_participants INTEGER,
-  status           TEXT CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
-  qr_code          TEXT UNIQUE,
-  rejection_reason TEXT,
-  created_by       UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW()
+  max_participants      INTEGER,
+  status                TEXT CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+  qr_code               TEXT UNIQUE,
+  rejection_reason      TEXT,
+  organizer             TEXT,
+  registration_deadline DATE,
+  created_by            UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================================

@@ -400,8 +400,12 @@ select.input-field option { background: #FFFFFF; color: var(--text-primary); }
 }
 
 .sidebar-logo {
-  padding: 1.5rem;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
 }
 
 .sidebar-nav {
@@ -790,7 +794,7 @@ select.input-field option { background: #FFFFFF; color: var(--text-primary); }
   .dashboard-content { padding: 1rem; }
 
   /* ── Data tables: scroll horizontally, never squish ── */
-  .data-table    { min-width: 560px; }
+  .data-table    { min-width: 700px; }
   .table-wrap    { -webkit-overflow-scrolling: touch; border-radius: var(--radius-md); }
 
   /* ── QR scanner modal: full-screen sheet on mobile ── */
@@ -818,4 +822,95 @@ select.input-field option { background: #FFFFFF; color: var(--text-primary); }
 }
 .grid-cols-auto-fill-320 {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+/* ============================================================
+   COMMAND PALETTE (cmdk)
+   ============================================================ */
+@keyframes cmdk-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes cmdk-panel-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-12px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0)     scale(1);    }
+}
+
+/* Group headings */
+[cmdk-group-heading] {
+  padding: 0.4rem 0.75rem 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+}
+
+/* Separator between groups */
+[cmdk-group]:not(:first-child) {
+  margin-top: 0.25rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.25rem;
+}
+
+/* Individual items */
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
+  font-family: var(--font-body);
+}
+.cmdk-item strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.cmdk-item[aria-selected='true'],
+.cmdk-item:hover {
+  background: var(--bg-card-hover);
+  color: var(--blue-600);
+}
+.cmdk-item[aria-selected='true'] strong,
+.cmdk-item:hover strong {
+  color: var(--blue-600);
+}
+.cmdk-item-danger {
+  color: var(--danger);
+}
+.cmdk-item-danger[aria-selected='true'],
+.cmdk-item-danger:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* Program items — taller, two-line layout */
+.cmdk-item-program {
+  align-items: flex-start;
+  padding: 0.6rem 0.75rem;
+}
+.cmdk-item-program[aria-selected='true'],
+.cmdk-item-program:hover {
+  background: rgba(37,99,235,0.06);
+}
+
+/* Highlight ring — applied via JS after palette navigates to a card */
+@keyframes cmdk-highlight-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(37,99,235,0.55), var(--shadow-card); }
+  40%  { box-shadow: 0 0 0 6px rgba(37,99,235,0.25), var(--shadow-card); }
+  100% { box-shadow: 0 0 0 0   rgba(37,99,235,0),    var(--shadow-card); }
+}
+.cmdk-highlight {
+  animation: cmdk-highlight-pulse 1.8s ease-out forwards;
+  outline: 2px solid rgba(37,99,235,0.6);
+  outline-offset: 2px;
 }

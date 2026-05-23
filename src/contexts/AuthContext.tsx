@@ -6,7 +6,7 @@ interface AuthContextType {
   user: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
+  signUp: (email: string, password: string, name: string, role: UserRole, matric_number: string, phone_number: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -81,7 +81,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     name: string,
-    role: UserRole
+    role: UserRole,
+    matric_number: string,
+    phone_number: string,
   ): Promise<void> => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -92,11 +94,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) throw error;
 
-    // If email confirmation is disabled, the profile trigger fires immediately.
-    // If confirmation is enabled, user must verify email first.
-    if (data.user && !data.user.email_confirmed_at) {
-      // Profile will be created by trigger when email is confirmed.
-      // For dev, Supabase auto-confirms unless you enable email confirmations.
+    // The DB trigger creates the profile row immediately on signup.
+    // Update it with the extra fields that the trigger doesn't know about.
+    if (data.user) {
+      await supabase
+        .from('profiles')
+        .update({ matric_number, phone_number })
+        .eq('id', data.user.id);
     }
   };
 

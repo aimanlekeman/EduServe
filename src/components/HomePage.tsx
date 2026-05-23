@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Achievement, Program } from '../lib/supabase';
 import {
@@ -11,11 +11,12 @@ import {
   ChevronRight,
   Award,
   Activity,
-  GraduationCap,
   Menu,
   X,
+  Building2,
   type LucideIcon,
 } from 'lucide-react';
+import itcLogo from '/assets/itc-logo.webp';
 
 interface HomePageProps {
   onLogin: () => void;
@@ -37,9 +38,66 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
   const [stats, setStats] = useState({ students: 0, programs: 0, hours: 0 });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Ref so realtime callbacks always see the latest program IDs without stale closure
+  const programIdsRef = useRef<string[]>([]);
+  useEffect(() => {
+    programIdsRef.current = upcomingPrograms.map(p => p.id);
+  }, [upcomingPrograms]);
+
   useEffect(() => {
     loadData();
+
+    const channel = supabase
+      .channel('homepage-reg-counts')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'registrations' },
+        (payload) => {
+          console.log('[Realtime] INSERT registrations:', payload);
+          const row = payload.new as { program_id: string; status: string };
+          if (row.status === 'rejected') return;
+          if (!programIdsRef.current.includes(row.program_id)) return;
+          setRegCounts(prev => ({
+            ...prev,
+            [row.program_id]: (prev[row.program_id] ?? 0) + 1,
+          }));
+        }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'registrations' },
+        (payload) => {
+          console.log('[Realtime] UPDATE registrations:', payload);
+          const row = payload.new as { program_id: string; status: string };
+          if (!programIdsRef.current.includes(row.program_id)) return;
+          if (row.status === 'rejected') {
+            setRegCounts(prev => ({
+              ...prev,
+              [row.program_id]: Math.max((prev[row.program_id] ?? 1) - 1, 0),
+            }));
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Realtime] homepage-reg-counts status:', status);
+      });
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
+
+  const refreshCounts = async (programIds: string[]) => {
+    if (programIds.length === 0) return;
+    const { data } = await supabase
+      .from('registrations')
+      .select('program_id')
+      .in('program_id', programIds)
+      .neq('status', 'rejected');
+    if (data) {
+      const counts: Record<string, number> = {};
+      for (const row of data as { program_id: string }[]) {
+        counts[row.program_id] = (counts[row.program_id] ?? 0) + 1;
+      }
+      setRegCounts(counts);
+    }
+  };
 
   const loadData = async () => {
     // Achievements
@@ -61,18 +119,8 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
       .limit(4);
     if (progData) {
       setUpcomingPrograms(progData as Program[]);
-      // Fetch approved registration counts for each program
       if (progData.length > 0) {
-        const { data: regs } = await supabase
-          .from('registrations')
-          .select('program_id')
-          .in('program_id', progData.map(p => p.id))
-          .eq('status', 'approved');
-        const counts: Record<string, number> = {};
-        (regs || []).forEach(r => {
-          counts[r.program_id] = (counts[r.program_id] || 0) + 1;
-        });
-        setRegCounts(counts);
+        await refreshCounts(progData.map(p => p.id));
       }
     }
 
@@ -109,19 +157,11 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
       <nav className="home-nav" style={{ justifyContent: 'space-between' }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              background: 'var(--blue-600)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <GraduationCap size={20} color="#fff" />
-          </div>
+          <img
+            src={itcLogo}
+            alt="EduServe"
+            style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 6, flexShrink: 0 }}
+          />
           <div>
             <div
               style={{
@@ -132,7 +172,7 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
                 lineHeight: 1,
               }}
             >
-              UTHM Volunteer
+              EduServe
             </div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
               Program Management
@@ -469,6 +509,23 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
                           <Users size={11} />
                           {p.max_participants ? `${joined} / ${p.max_participants} joined` : `${joined} joined · open`}
                         </span>
+                        {p.organizer && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Building2 size={11} /> {p.organizer}
+                          </span>
+                        )}
+                        {p.registration_deadline && (() => {
+                          const deadlineStr = p.registration_deadline;
+                          const today = new Date(); today.setHours(0,0,0,0);
+                          const dl = new Date(deadlineStr); dl.setHours(0,0,0,0);
+                          const closed = dl < today;
+                          return (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: closed ? '#ef4444' : 'var(--text-muted)', fontWeight: closed ? 600 : 400 }}>
+                              <Calendar size={11} />
+                              {closed ? 'Registration closed' : `Register by ${dl.toLocaleDateString('en-MY')}`}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <div style={{ marginTop: 'auto', paddingTop: '0.625rem', display: 'flex', justifyContent: 'flex-end' }}>
                         <button className="btn btn-outline btn-sm" onClick={onRegister}>Join</button>
@@ -500,7 +557,7 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', marginBottom: '0.75rem' }}>
-          <GraduationCap size={18} style={{ color: 'var(--blue-400)' }} />
+          <img src={itcLogo} alt="EduServe" style={{ width: 18, height: 18, objectFit: 'contain' }} />
           <span
             style={{
               fontFamily: 'var(--font-display)',
@@ -509,7 +566,7 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
               fontSize: '0.9rem',
             }}
           >
-            UTHM Volunteer Program Management
+            EduServe Program Management
           </span>
         </div>
         <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>

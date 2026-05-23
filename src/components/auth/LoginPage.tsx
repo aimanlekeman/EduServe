@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
-import { GraduationCap, Eye, EyeOff, ArrowLeft, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Loader2 } from 'lucide-react';
 
 interface LoginPageProps {
   onToggle: () => void;
@@ -58,19 +58,11 @@ export function LoginPage({ onToggle, onBack }: LoginPageProps) {
 
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: 'var(--blue-600)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <GraduationCap size={22} color="#fff" />
-          </div>
+          <img
+            src="/assets/itc-logo.webp"
+            alt="EduServe"
+            style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }}
+          />
           <div>
             <div
               style={{
@@ -80,7 +72,7 @@ export function LoginPage({ onToggle, onBack }: LoginPageProps) {
                 color: 'var(--text-primary)',
               }}
             >
-              UTHM Volunteer
+              EduServe
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sign in to your account</div>
           </div>
