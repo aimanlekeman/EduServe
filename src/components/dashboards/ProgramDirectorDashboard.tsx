@@ -186,23 +186,22 @@ export function ProgramDirectorDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Regenerate QR image payload every 15 s while the modal is open.
-  // The manual-entry display code is fixed (slot 0 = demo code) so it can
-  // be read off-screen during demos and won't desync with the image.
+  // Rotate the QR image payload AND the manual-entry code every 15 s while the
+  // modal is open. The display code is derived from the current 15-second slot,
+  // matching the student-side validation (accepts currentSlot & currentSlot-1).
   useEffect(() => {
     if (!qrProgram) { setQrPayload(''); setQrDisplayCode(''); return; }
 
-    // Fixed demo code — generated once, never refreshed.
-    setQrDisplayCode(slotCode(qrProgram.qr_code ?? '', 0));
-
-    const generatePayload = () => {
+    const refresh = () => {
+      const slot = Math.floor(Date.now() / 15000);
+      setQrDisplayCode(slotCode(qrProgram.qr_code ?? '', slot));
       setQrPayload(JSON.stringify({ programId: qrProgram.qr_code, timestamp: Date.now() }));
     };
-    generatePayload();
+    refresh();
     setQrCountdown(15);
     const tick = setInterval(() => {
       setQrCountdown(prev => {
-        if (prev <= 1) { generatePayload(); return 15; }
+        if (prev <= 1) { refresh(); return 15; }
         return prev - 1;
       });
     }, 1000);
