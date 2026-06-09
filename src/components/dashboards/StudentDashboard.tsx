@@ -214,42 +214,48 @@ export function StudentDashboard() {
     if (!code) { toast.error('No QR code detected'); return; }
     setScanning(true);
 
-    // Dynamic anti-cheat payload — two accepted formats:
-    //   Camera: JSON string { programId, timestamp }
-    //   Manual: "QR-XXXXXXXX-NNNN" short slot code
+    // Dynamic anti-cheat payload — three accepted formats:
+    //   Camera:  JSON string { programId, timestamp }
+    //   Manual:  6-digit slot-hash code shown under the QR
+    //   Legacy:  raw qr_code string (e.g. "QR-XXXXXXXX")
     let qrCode = code;
-    try {
-      const parsed = JSON.parse(code) as { programId: string; timestamp: number };
-      if (parsed.programId && parsed.timestamp) {
-        if (Date.now() - parsed.timestamp > 30_000) {
-          toast.error('QR Code Expired. Please scan the live code on the Director\'s screen.');
-          setShowQrModal(false);
-          setScanning(false);
-          return;
-        }
-        qrCode = parsed.programId;
+
+    // 1. Numeric 6-digit manual code path — checked FIRST because
+    //    JSON.parse("123456") succeeds (returns a number) and would
+    //    otherwise bypass this branch entirely.
+    if (/^\d{6}$/.test(code)) {
+      const currentSlot = Math.floor(Date.now() / 15000);
+      const { data: allProgs } = await supabase.from('programs').select('qr_code').eq('status', 'approved');
+      let matchedBase: string | null = null;
+      for (const prog of (allProgs ?? []) as { qr_code: string }[]) {
+        const isValid = [currentSlot, currentSlot - 1, 0].some( // 0 = fixed demo code
+          s => slotCode(prog.qr_code ?? '', s) === code
+        );
+        if (isValid) { matchedBase = prog.qr_code; break; }
       }
-    } catch {
-      // Short numeric manual code (6 digits) — find the matching program by slot hash
-      if (/^\d{6}$/.test(code)) {
-        const currentSlot = Math.floor(Date.now() / 15000);
-        const { data: allProgs } = await supabase.from('programs').select('qr_code').eq('status', 'approved');
-        let matchedBase: string | null = null;
-        for (const prog of (allProgs ?? []) as { qr_code: string }[]) {
-          const isValid = [currentSlot, currentSlot - 1, 0].some( // 0 = fixed demo code
-            s => slotCode(prog.qr_code ?? '', s) === code
-          );
-          if (isValid) { matchedBase = prog.qr_code; break; }
-        }
-        if (!matchedBase) {
-          toast.error('Invalid or expired code. Ask your Director for the current 6-digit code.');
-          setShowQrModal(false);
-          setScanning(false);
-          return;
-        }
-        qrCode = matchedBase;
+      if (!matchedBase) {
+        toast.error('Invalid or expired code. Ask your Director for the current 6-digit code.');
+        setShowQrModal(false);
+        setScanning(false);
+        return;
       }
-      // Otherwise plain-text legacy code — use as-is
+      qrCode = matchedBase;
+    } else {
+      // 2. JSON payload from camera scan
+      try {
+        const parsed = JSON.parse(code) as { programId: string; timestamp: number };
+        if (parsed.programId && parsed.timestamp) {
+          if (Date.now() - parsed.timestamp > 30_000) {
+            toast.error('QR Code Expired. Please scan the live code on the Director\'s screen.');
+            setShowQrModal(false);
+            setScanning(false);
+            return;
+          }
+          qrCode = parsed.programId;
+        }
+      } catch {
+        // 3. Plain-text legacy code — use as-is
+      }
     }
 
     const { data: program } = await supabase

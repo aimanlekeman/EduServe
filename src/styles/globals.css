@@ -498,6 +498,24 @@ select.input-field option { background: #FFFFFF; color: var(--text-primary); }
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Nav link overrides — scoped so global btn styles are untouched */
+.home-nav .btn-ghost {
+  color: rgba(226, 232, 240, 0.85);
+}
+.home-nav .btn-ghost:hover:not(:disabled) {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+.home-nav .btn-outline {
+  color: rgba(226, 232, 240, 0.9);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.home-nav .btn-outline:hover:not(:disabled) {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .hero-section {
   min-height: 100vh;
   display: flex;

@@ -126,10 +126,13 @@ export function AdminDashboard() {
   };
 
   const deleteUser = async (id: string) => {
-    if (!confirm('Delete this user? This cannot be undone.')) return;
-    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    if (!confirm('Delete this user? Their account, profile, registrations, attendance and certificates will all be removed. This cannot be undone.')) return;
+    const { error } = await supabase.rpc('admin_delete_user', { target_user_id: id });
     if (!error) { toast.success('User deleted'); load(); }
-    else toast.error('Failed to delete user');
+    else {
+      console.error('admin_delete_user failed:', error);
+      toast.error(error.message || 'Failed to delete user');
+    }
   };
 
   const deleteProgram = async (id: string) => {

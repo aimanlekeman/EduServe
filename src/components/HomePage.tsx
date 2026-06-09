@@ -364,8 +364,10 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
                         alt={a.title}
                         style={{
                           width: '100%',
-                          height: 'auto',
+                          height: 220,
+                          objectFit: 'cover',
                           display: 'block',
+                          background: 'var(--bg-secondary)',
                         }}
                       />
                     ) : (
@@ -502,7 +504,7 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
                         {p.title}
                       </h3>
                       {p.description && (
-                        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                           {p.description}
                         </p>
                       )}

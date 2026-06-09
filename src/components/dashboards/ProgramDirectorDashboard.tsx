@@ -153,10 +153,11 @@ export function ProgramDirectorDashboard() {
     if (!user) return;
     setLoading(true);
     try {
+      // Program directors share a unified view: all programs created by any director,
+      // and every registration across those programs.
       const { data: progData, error: progError } = await supabase
         .from('programs')
         .select('*')
-        .eq('created_by', user.id)
         .order('created_at', { ascending: false });
 
       if (progError) throw progError;
@@ -185,20 +186,23 @@ export function ProgramDirectorDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Regenerate QR payload every 15 s while the modal is open
+  // Regenerate QR image payload every 15 s while the modal is open.
+  // The manual-entry display code is fixed (slot 0 = demo code) so it can
+  // be read off-screen during demos and won't desync with the image.
   useEffect(() => {
     if (!qrProgram) { setQrPayload(''); setQrDisplayCode(''); return; }
-    const generate = () => {
-      const now  = Date.now();
-      const slot = Math.floor(now / 15000);
-      setQrPayload(JSON.stringify({ programId: qrProgram.qr_code, timestamp: now }));
-      setQrDisplayCode(slotCode(qrProgram.qr_code ?? '', slot));
+
+    // Fixed demo code — generated once, never refreshed.
+    setQrDisplayCode(slotCode(qrProgram.qr_code ?? '', 0));
+
+    const generatePayload = () => {
+      setQrPayload(JSON.stringify({ programId: qrProgram.qr_code, timestamp: Date.now() }));
     };
-    generate();
+    generatePayload();
     setQrCountdown(15);
     const tick = setInterval(() => {
       setQrCountdown(prev => {
-        if (prev <= 1) { generate(); return 15; }
+        if (prev <= 1) { generatePayload(); return 15; }
         return prev - 1;
       });
     }, 1000);
