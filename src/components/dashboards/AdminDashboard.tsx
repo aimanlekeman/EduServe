@@ -84,7 +84,7 @@ export function AdminDashboard() {
       if (a.data) setAchievements(a.data as Achievement[]);
       if (att.data) {
         const map: Record<string, number> = {};
-        (att.data as { user_id: string; program: { volunteer_hours: number } | null }[]).forEach(row => {
+        (att.data as unknown as { user_id: string; program: { volunteer_hours: number } | null }[]).forEach(row => {
           map[row.user_id] = (map[row.user_id] ?? 0) + (row.program?.volunteer_hours ?? 0);
         });
         setAttendanceHours(map);
