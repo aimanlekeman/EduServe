@@ -236,6 +236,7 @@ export function DashboardLayout({
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
             {/* Command Palette hint */}
             <button
+              className="topbar-cmd-btn"
               onClick={() => setCmdOpen(true)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.4rem',
@@ -274,7 +275,7 @@ export function DashboardLayout({
               </button>
 
               {bellOpen && (
-                <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 340, maxHeight: 460, display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', boxShadow: '0 12px 40px rgba(0,0,0,0.25)', zIndex: 9999, overflow: 'hidden' }}>
+                <div className="notif-dropdown" style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 340, maxHeight: 460, display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', boxShadow: '0 12px 40px rgba(0,0,0,0.25)', zIndex: 9999, overflow: 'hidden' }}>
 
                   {/* Dropdown header */}
                   <div style={{ padding: '0.875rem 1rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
