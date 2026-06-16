@@ -499,6 +499,11 @@ select.input-field option { background: #FFFFFF; color: var(--text-primary); }
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Desktop nav links vs. mobile hamburger — explicit classes so neither inline
+   styles nor Tailwind utilities can fight over `display`. */
+.home-nav-links        { display: flex; }
+.home-nav .home-nav-burger { display: none; }
+
 /* Nav link overrides — scoped so global btn styles are untouched */
 .home-nav .btn-ghost {
   color: rgba(226, 232, 240, 0.85);
@@ -848,6 +853,11 @@ select.input-field option { background: #FFFFFF; color: var(--text-primary); }
 
   /* ── Modals: trim padding so content breathes on small screens ── */
   .modal-box { padding: 1.5rem; }
+
+  /* ── Public homepage nav: hamburger replaces desktop links, tighter padding ── */
+  .home-nav { padding: 0 1rem; }
+  .home-nav .home-nav-links  { display: none; }
+  .home-nav .home-nav-burger { display: inline-flex; }
 
   /* ── General ── */
   .section    { padding: 3rem 1rem; }

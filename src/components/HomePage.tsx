@@ -76,6 +76,16 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
           }
         }
       )
+      // Live hero stats: any change to students/hours or program approvals
+      // re-pulls the three totals shown under "Get Started".
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => { refreshStats(); }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'programs' },
+        () => { refreshStats(); }
+      )
       .subscribe((status) => {
         console.log('[Realtime] homepage-reg-counts status:', status);
       });
@@ -97,6 +107,24 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
       }
       setRegCounts(counts);
     }
+  };
+
+  const refreshStats = async () => {
+    const [{ count: studentCount }, { count: programCount }, { data: hoursData }] =
+      await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+        supabase.from('programs').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
+        supabase.from('profiles').select('volunteer_hours'),
+      ]);
+    const totalHours = (hoursData || []).reduce(
+      (sum: number, p: { volunteer_hours: number }) => sum + (p.volunteer_hours || 0),
+      0
+    );
+    setStats({
+      students: studentCount || 0,
+      programs: programCount || 0,
+      hours: totalHours,
+    });
   };
 
   const loadData = async () => {
@@ -126,21 +154,7 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
       }
 
       // Stats
-      const [{ count: studentCount }, { count: programCount }, { data: hoursData }] =
-        await Promise.all([
-          supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
-          supabase.from('programs').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
-          supabase.from('profiles').select('volunteer_hours'),
-        ]);
-      const totalHours = (hoursData || []).reduce(
-        (sum: number, p: { volunteer_hours: number }) => sum + (p.volunteer_hours || 0),
-        0
-      );
-      setStats({
-        students: studentCount || 0,
-        programs: programCount || 0,
-        hours: totalHours,
-      });
+      await refreshStats();
     } catch (err) {
       console.error('Failed to load homepage data:', err);
     }
@@ -186,8 +200,8 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
 
         {/* Desktop nav links */}
         <div
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          className="hidden md:flex"
+          style={{ alignItems: 'center', gap: '0.5rem' }}
+          className="home-nav-links"
         >
           <a href="#achievements" className="btn btn-ghost btn-sm">Achievements</a>
           <a href="#events" className="btn btn-ghost btn-sm">Events</a>
@@ -199,7 +213,7 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
 
         {/* Mobile menu button */}
         <button
-          className="btn btn-ghost btn-sm md:hidden"
+          className="btn btn-ghost btn-sm home-nav-burger"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -223,8 +237,10 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
             gap: '0.5rem',
           }}
         >
-          <button className="btn btn-outline" onClick={onLogin}>Log In</button>
-          <button className="btn btn-primary" onClick={onRegister}>Register</button>
+          <a href="#achievements" className="btn btn-ghost" onClick={() => setMobileMenuOpen(false)}>Achievements</a>
+          <a href="#events" className="btn btn-ghost" onClick={() => setMobileMenuOpen(false)}>Events</a>
+          <button className="btn btn-outline" onClick={() => { setMobileMenuOpen(false); onLogin(); }}>Log In</button>
+          <button className="btn btn-primary" onClick={() => { setMobileMenuOpen(false); onRegister(); }}>Register</button>
         </div>
       )}
 
