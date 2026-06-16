@@ -90,7 +90,11 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
         console.log('[Realtime] homepage-reg-counts status:', status);
       });
 
-    return () => { supabase.removeChannel(channel); };
+    // Anon visitors can't receive realtime events for the RLS-protected
+    // profiles table, so poll the public stats RPC to keep the hero numbers live.
+    const poll = setInterval(() => { refreshStats(); }, 15000);
+
+    return () => { supabase.removeChannel(channel); clearInterval(poll); };
   }, []);
 
   const refreshCounts = async (programIds: string[]) => {
@@ -109,22 +113,20 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
     }
   };
 
+  // Stats come from a SECURITY DEFINER RPC (get_public_stats) so the logged-out
+  // homepage can read aggregate totals without exposing the RLS-protected
+  // profiles table. Returns a single row: { students, programs, hours }.
   const refreshStats = async () => {
-    const [{ count: studentCount }, { count: programCount }, { data: hoursData }] =
-      await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
-        supabase.from('programs').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
-        supabase.from('profiles').select('volunteer_hours'),
-      ]);
-    const totalHours = (hoursData || []).reduce(
-      (sum: number, p: { volunteer_hours: number }) => sum + (p.volunteer_hours || 0),
-      0
-    );
-    setStats({
-      students: studentCount || 0,
-      programs: programCount || 0,
-      hours: totalHours,
-    });
+    const { data, error } = await supabase.rpc('get_public_stats');
+    if (error) { console.error('Failed to load stats:', error); return; }
+    const row = (data as { students: number; programs: number; hours: number }[] | null)?.[0];
+    if (row) {
+      setStats({
+        students: Number(row.students) || 0,
+        programs: Number(row.programs) || 0,
+        hours: Number(row.hours) || 0,
+      });
+    }
   };
 
   const loadData = async () => {
