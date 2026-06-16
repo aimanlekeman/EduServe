@@ -35,7 +35,6 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [upcomingPrograms, setUpcomingPrograms] = useState<Program[]>([]);
   const [regCounts, setRegCounts] = useState<Record<string, number>>({});
-  const [stats, setStats] = useState({ students: 0, programs: 0, hours: 0 });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Ref so realtime callbacks always see the latest program IDs without stale closure
@@ -76,25 +75,11 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
           }
         }
       )
-      // Live hero stats: any change to students/hours or program approvals
-      // re-pulls the three totals shown under "Get Started".
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles' },
-        () => { refreshStats(); }
-      )
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'programs' },
-        () => { refreshStats(); }
-      )
       .subscribe((status) => {
         console.log('[Realtime] homepage-reg-counts status:', status);
       });
 
-    // Anon visitors can't receive realtime events for the RLS-protected
-    // profiles table, so poll the public stats RPC to keep the hero numbers live.
-    const poll = setInterval(() => { refreshStats(); }, 15000);
-
-    return () => { supabase.removeChannel(channel); clearInterval(poll); };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const refreshCounts = async (programIds: string[]) => {
@@ -110,22 +95,6 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
         counts[row.program_id] = (counts[row.program_id] ?? 0) + 1;
       }
       setRegCounts(counts);
-    }
-  };
-
-  // Stats come from a SECURITY DEFINER RPC (get_public_stats) so the logged-out
-  // homepage can read aggregate totals without exposing the RLS-protected
-  // profiles table. Returns a single row: { students, programs, hours }.
-  const refreshStats = async () => {
-    const { data, error } = await supabase.rpc('get_public_stats');
-    if (error) { console.error('Failed to load stats:', error); return; }
-    const row = (data as { students: number; programs: number; hours: number }[] | null)?.[0];
-    if (row) {
-      setStats({
-        students: Number(row.students) || 0,
-        programs: Number(row.programs) || 0,
-        hours: Number(row.hours) || 0,
-      });
     }
   };
 
@@ -154,9 +123,6 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
           await refreshCounts(progData.map(p => p.id));
         }
       }
-
-      // Stats
-      await refreshStats();
     } catch (err) {
       console.error('Failed to load homepage data:', err);
     }
@@ -291,40 +257,6 @@ export function HomePage({ onLogin, onRegister }: HomePageProps) {
             <button className="btn btn-outline btn-lg" onClick={onLogin}>
               Sign In
             </button>
-          </div>
-
-          {/* Stats row */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '2rem',
-              justifyContent: 'center',
-              marginTop: '3rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            {[
-              { value: stats.students, label: 'Students' },
-              { value: stats.programs, label: 'Programs' },
-              { value: stats.hours, label: 'Volunteer Hours' },
-            ].map(({ value, label }) => (
-              <div key={label} style={{ textAlign: 'center' }}>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '1.875rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    lineHeight: 1,
-                  }}
-                >
-                  {value.toLocaleString()}+
-                </div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                  {label}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
