@@ -320,8 +320,8 @@ export function DashboardLayout({
                         >
                           <div style={{ marginTop: 2 }}>{icon}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: '0.8rem', fontWeight: n.is_read ? 500 : 700, color: 'var(--text-primary)', marginBottom: 2 }}>{n.title}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: 3 }}>{n.body}</div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: n.is_read ? 500 : 700, color: 'var(--text-primary)', marginBottom: 2, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{n.title}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: 3, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{n.body}</div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{timeAgo}</div>
                           </div>
                           {!n.is_read && (

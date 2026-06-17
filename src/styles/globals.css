@@ -848,8 +848,19 @@ select.input-field option { background: #FFFFFF; color: var(--text-primary); }
   /* Ctrl+K hint is keyboard-only — hide on phones to free topbar space */
   .topbar-cmd-btn { display: none !important; }
 
-  /* ── Notification dropdown: never exceed viewport width ── */
-  .notif-dropdown { width: min(340px, calc(100vw - 1.5rem)) !important; }
+  /* ── Notification dropdown ──
+     The bell is anchored left of the profile avatar, so `right: 0` (relative to
+     the bell) starts inset from the screen edge — a wide box then bleeds off the
+     LEFT. On mobile, anchor to the viewport instead: fixed, full width minus
+     equal side gutters, just below the 60px topbar. Can't pass either edge. */
+  .notif-dropdown {
+    position: fixed !important;
+    top: 64px !important;
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    width: auto !important;
+    max-width: none !important;
+  }
 
   /* ── Modals: trim padding so content breathes on small screens ── */
   .modal-box { padding: 1.5rem; }
